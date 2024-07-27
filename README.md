@@ -1,18 +1,24 @@
 # Gradient2ColorRamp
-Hacky way to manage gradients for Paint via Compositor Color Ramps displayed in 3d View N Panel
+Update number 1!
 
-*Add Color Ramp*
-This will add a new Color Ramp in the Compositor, and any changes you make in the Gradient2ColorRamp panel will affect it.
-To use the Color Ramp, hover over it and press Ctrl-C to copy, then hover over the tool panel brush using Gradient and press Ctrl-V.
+Gradient Manager panel is in the Paint tab.
 
-This is a hack because the Paint Brushes share a single Gradient to use, so we are storing our options in the Compositor.
+Name your *Material* first to coincide with the kind of gradient you are making.
 
-*Remove Color Ramp*
-To remove, first please click the lock above the color ramp you want to delete, then press Remove Color Ramp and the color ramp will 
-delete from the the panel and the Compositor. What I prefer to do is make a few and if one isn't needed, change it. 
+*Create Horcrux* will create a new container object to store the materials that contain our color ramps to manage gradients.
 
-I want to add this to Draw2Paint as is, but still need to figure out if the process of tagging the name will allow me to circumvent the 
-already existing clearance of the compositor when using the Flattener option in the Compositor.
+*Add Material* this will add a new material to set a new category - type the new name up top first, then press Add Material to create the category.
+
+*Select* Here you can choose from the materials on the Horcrux object to see the gradients on.
+
+*Add Color Ramp* this will add a new color ramp to the active category/material.
+
+*Remove Color Ramp* this will remove only the color ramp that has been indicated with the unlock icon. 
+
+
+For now, this is mostly done but I need to think more of there is anything else that needs attention, like how many horcrux objects might exist and if there might ever be a conflict that needs resolution.
+
+Go have fun.
 
 
 ![main_view_panel_to_tool](https://github.com/user-attachments/assets/e9d0cc2a-623d-457d-84fd-e43e8aa2540a)
