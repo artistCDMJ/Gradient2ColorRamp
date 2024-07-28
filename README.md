@@ -1,22 +1,30 @@
 # Gradient2ColorRamp
-Update number 1!
+Update number 2!
 
-Gradient Manager panel is in the Paint tab.
+Gradient and Falloff Manager panel is in the Paint tab.
 
-Name your *Material* first to coincide with the kind of gradient you are making.
+Name your *Gradient Material* first to coincide with the kind of gradient you are making.
+
+Name your *Falloff Material* first to set with what kind of curves you are trying to keep, Cavity Mask or Brush Falloff 
 
 *Create Horcrux* will create a new container object to store the materials that contain our color ramps to manage gradients.
 
 *Add Material* this will add a new material to set a new category - type the new name up top first, then press Add Material to create the category.
 
-*Select* Here you can choose from the materials on the Horcrux object to see the gradients on.
+*Display Gradient Category* Here you can choose from the materials on the Horcrux object to see the gradients on.
 
-*Add Color Ramp* this will add a new color ramp to the active category/material.
+*Display Falloff Category* Here you can choose from the materials on the Horcrux object to see the RGB Curve nodes on.
 
-*Remove Color Ramp* this will remove only the color ramp that has been indicated with the unlock icon. 
+*Add ColorRamp* this will add a new color ramp to the active category/material.
+
+*Remove ColorRamp* this will remove only the color ramp that has been indicated with the unlock icon. 
+
+*Add Falloff* this will add a new curve node to the active category/material.
+
+*Remove Falloff* this will remove only the curve node that has been indicated with the unlock icon.
 
 
-For now, this is mostly done but I need to think more of there is anything else that needs attention, like how many horcrux objects might exist and if there might ever be a conflict that needs resolution.
+To not have to see the Falloff curves or not see the Colorramps, you can choose to display only one or the other in the Display options, calling Gradient category in both will block display off Falloff and vice versa.
 
 Go have fun.
 
