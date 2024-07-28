@@ -341,8 +341,8 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
 
         horcrux_object = bpy.data.objects.get("horcrux")
         if horcrux_object and horcrux_object.data.materials:
-            layout.prop(color_ramp_manager, "selected_material", text="Display Gradient Category")
-            layout.prop(color_ramp_manager, "selected_curve_material", text="Display Falloff Category")
+            layout.prop(color_ramp_manager, "selected_material", text="Gradients")
+            layout.prop(color_ramp_manager, "selected_curve_material", text="Falloffs")
 
             row = layout.row()
             row.operator("material.add_color_ramp", text="Add ColorRamp")
