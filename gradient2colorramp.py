@@ -334,23 +334,23 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
         layout = self.layout
         color_ramp_manager = context.scene.color_ramp_manager
 
-        layout.prop(color_ramp_manager, "material_name", text="Ramp Material Name")
-        layout.prop(color_ramp_manager, "curve_material_name", text="Curve Material Name")
+        layout.prop(color_ramp_manager, "material_name", text="Gradient Category Name")
+        layout.prop(color_ramp_manager, "curve_material_name", text="Falloff Category Name")
         layout.operator("object.create_horcrux", text="Create Horcrux")
         layout.operator("object.add_material", text="Add Material")
 
         horcrux_object = bpy.data.objects.get("horcrux")
         if horcrux_object and horcrux_object.data.materials:
-            layout.prop(color_ramp_manager, "selected_material", text="Select Ramp Material")
-            layout.prop(color_ramp_manager, "selected_curve_material", text="Select Curve Material")
+            layout.prop(color_ramp_manager, "selected_material", text="Display Gradient Category")
+            layout.prop(color_ramp_manager, "selected_curve_material", text="Display Falloff Category")
 
             row = layout.row()
-            row.operator("material.add_color_ramp", text="Add Color Ramp")
-            row.operator("material.remove_color_ramp", text="Remove Color Ramp")
+            row.operator("material.add_color_ramp", text="Add ColorRamp")
+            row.operator("material.remove_color_ramp", text="Remove ColorRamp")
 
             row = layout.row()
-            row.operator("material.add_rgb_curve", text="Add RGB Curve")
-            row.operator("material.remove_rgb_curve", text="Remove RGB Curve")
+            row.operator("material.add_rgb_curve", text="Add Falloff")
+            row.operator("material.remove_rgb_curve", text="Remove Falloff")
 
             selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
             if selected_material and selected_material.use_nodes:
@@ -362,7 +362,7 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
                             color_ramp_node = node_tree.nodes[ramp.name]
                             box = layout.box()
                             row = box.row()
-                            row.prop(ramp, "active", text="", icon='RESTRICT_VIEW_OFF' if ramp.active else 'RESTRICT_VIEW_ON')
+                            row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
                             row.label(text=ramp.name)
                             box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
                 else:
@@ -378,7 +378,7 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
                             rgb_curve_node = node_tree.nodes[curve.name]
                             box = layout.box()
                             row = box.row()
-                            row.prop(curve, "active", text="", icon='RESTRICT_VIEW_OFF' if curve.active else 'RESTRICT_VIEW_ON')
+                            row.prop(curve, "active", text="", icon='VIEW_UNLOCKED' if curve.active else 'VIEW_LOCKED')
                             row.label(text=curve.name)
                             box.template_curve_mapping(data=rgb_curve_node, property="mapping", type='COLOR')
                 else:
