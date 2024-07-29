@@ -1,26 +1,4 @@
-# -*- coding: utf8 -*-
-# python
-# ##### BEGIN GPL LICENSE BLOCK #####
-#
-#  This program is free software; you can redistribute it and/or
-#  modify it under the terms of the GNU General Public License
-#  as published by the Free Software Foundation; either version 2
-#  of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
-#
-# ##### END GPL LICENSE BLOCK #####
 
-# NON <pep8 compliant>
-###############################################################################
 bl_info = {
     "name": "Gradient2ColorRamp",
     "author": "CDMJ",
@@ -33,7 +11,8 @@ bl_info = {
 }
 
 import bpy
-from bpy.props import StringProperty, BoolProperty, CollectionProperty, PointerProperty, EnumProperty
+from bpy.types import Panel, Operator, PropertyGroup
+from bpy.props import PointerProperty, FloatVectorProperty, StringProperty, CollectionProperty, BoolProperty, EnumProperty
 
 ### Property groups to hold the color ramps and their names
 class RGBCurveItem(bpy.types.PropertyGroup):
@@ -85,6 +64,65 @@ class ColorRampManagerProperties(bpy.types.PropertyGroup):
         else:
             self.selected_material = ""
             self.selected_curve_material = ""
+
+class ColorRampPalette(PropertyGroup):
+    color_ramp_name: StringProperty()
+
+# Function to get color ramp from object
+def get_active_color_ramp(object_name):
+    obj = bpy.data.objects.get(object_name)
+    if not obj:
+        return None
+
+    material = obj.active_material
+    if not material or not material.use_nodes:
+        return None
+
+    color_ramp_manager = bpy.context.scene.color_ramp_manager
+
+    # Find the active color ramp
+    for ramp in color_ramp_manager.ramp_list:
+        if ramp.active:
+            node_tree = material.node_tree
+            if ramp.name in node_tree.nodes:
+                node = node_tree.nodes[ramp.name]
+                if node.type == 'VALTORGB':
+                    return node.color_ramp
+
+    return None
+
+# Operator to set the brush palette from the active color ramp
+def set_brush_palette(colors):
+    palette_name = "ColorRampPalette"
+    palette = bpy.data.palettes.get(palette_name)
+
+    if not palette:
+        palette = bpy.data.palettes.new(palette_name)
+
+    # Clear existing palette colors
+    palette.colors.clear()
+
+    for color in colors:
+        palette_color = palette.colors.new()
+        palette_color.color = color[:3]  # Use only RGB (ignore Alpha)
+
+class OT_GetColorRampPalette(Operator):
+    bl_idname = "paint.get_color_ramp_palette"
+    bl_label = "Get Color Ramp Palette"
+
+    def execute(self, context):
+        object_name = "horcrux"
+        color_ramp = get_active_color_ramp(object_name)
+        if not color_ramp:
+            self.report({'WARNING'}, f"No active Color Ramp found in {object_name}")
+            return {'CANCELLED'}
+
+        colors = [element.color for element in color_ramp.elements]
+        set_brush_palette(colors)
+        context.scene.color_ramp_palette.color_ramp_name = color_ramp.id_data.name
+        self.report({'INFO'}, "Palette set from Color Ramp")
+        return {'FINISHED'}
+
 
 ### Operator to create the 'horcrux' mesh grid object and add a material
 class OBJECT_OT_create_horcrux(bpy.types.Operator):
@@ -333,6 +371,8 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         color_ramp_manager = context.scene.color_ramp_manager
+        palette = context.scene.color_ramp_palette
+        material = context.object.active_material
 
         layout.prop(color_ramp_manager, "material_name", text="Gradient Category Name")
         layout.prop(color_ramp_manager, "curve_material_name", text="Falloff Category Name")
@@ -351,22 +391,36 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
             row = layout.row()
             row.operator("material.add_rgb_curve", text="Add Falloff")
             row.operator("material.remove_rgb_curve", text="Remove Falloff")
-
-            selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
-            if selected_material and selected_material.use_nodes:
-                node_tree = selected_material.node_tree
-
-                if color_ramp_manager.ramp_list:
-                    for ramp in color_ramp_manager.ramp_list:
-                        if ramp.name in node_tree.nodes:
-                            color_ramp_node = node_tree.nodes[ramp.name]
-                            box = layout.box()
-                            row = box.row()
-                            row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
-                            row.label(text=ramp.name)
-                            box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
+            
+            row = layout.row()
+            if palette.color_ramp_name and material and material.use_nodes:
+                node_tree = material.node_tree
+                color_ramp_node = node_tree.nodes.get(palette.color_ramp_name)
+                if color_ramp_node and color_ramp_node.type == 'VALTORGB':
+                    row.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
                 else:
-                    layout.label(text="No Color Ramps Added", icon='INFO')
+                    row.label(text="No Color Ramp Available")
+            else:
+                row.label(text="No Color Ramp Available")
+
+        layout.operator(OT_GetColorRampPalette.bl_idname, text="Get Color Ramp Palette")
+            
+
+        selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
+        if selected_material and selected_material.use_nodes:
+            node_tree = selected_material.node_tree
+
+            if color_ramp_manager.ramp_list:
+                for ramp in color_ramp_manager.ramp_list:
+                    if ramp.name in node_tree.nodes:
+                        color_ramp_node = node_tree.nodes[ramp.name]
+                        box = layout.box()
+                        row = box.row()
+                        row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
+                        row.label(text=ramp.name)
+                        box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
+            else:
+                layout.label(text="No Color Ramps Added", icon='INFO')
 
             selected_curve_material = bpy.data.materials.get(color_ramp_manager.selected_curve_material)
             if selected_curve_material and selected_curve_material.use_nodes:
@@ -384,34 +438,78 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
                 else:
                     layout.label(text="No RGB Curves Added", icon='INFO')
 
+class AddColorToPalette(Operator):
+    bl_idname = "palette.add_color"
+    bl_label = "Add Color to Palette"
+
+    color: FloatVectorProperty(
+        name="Color",
+        subtype='COLOR',
+        min=0.0, max=1.0,
+        default=(1.0, 1.0, 1.0, 1.0)
+    )
+
+    def execute(self, context):
+        material = context.object.active_material
+        if not material or not material.use_nodes:
+            self.report({'WARNING'}, "No active material with nodes found")
+            return {'CANCELLED'}
+
+        color_ramp_name = context.scene.color_ramp_palette.color_ramp_name
+        node_tree = material.node_tree
+        color_ramp_node = node_tree.nodes.get(color_ramp_name)
+
+        if color_ramp_node and color_ramp_node.type == 'VALTORGB':
+            new_element = color_ramp_node.color_ramp.elements.new(0.5)
+            new_element.color = self.color
+            self.report({'INFO'}, "Color added to active Color Ramp")
+            return {'FINISHED'}
+        else:
+            self.report({'WARNING'}, "No active Color Ramp found")
+            return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
 
 
 
 ### Register and unregister functions
 def register():
-    bpy.utils.register_class(ColorRampItem)
+    
     bpy.utils.register_class(RGBCurveItem)
+    bpy.utils.register_class(ColorRampItem)
     bpy.utils.register_class(ColorRampManagerProperties)
+    bpy.utils.register_class(ColorRampPalette)
+    bpy.utils.register_class(OT_GetColorRampPalette)
     bpy.utils.register_class(OBJECT_OT_create_horcrux)
     bpy.utils.register_class(OBJECT_OT_add_material)
     bpy.utils.register_class(MATERIAL_OT_add_color_ramp)
     bpy.utils.register_class(MATERIAL_OT_add_rgb_curve)
     bpy.utils.register_class(MATERIAL_OT_remove_color_ramp)
     bpy.utils.register_class(MATERIAL_OT_remove_rgb_curve)
-    bpy.utils.register_class(OBJECT_PT_horcrux_manager)
+    bpy.utils.register_class(OBJECT_PT_horcrux_manager)    
+    bpy.utils.register_class(AddColorToPalette)
+    
+    bpy.types.Scene.color_ramp_palette = PointerProperty(type=ColorRampPalette)
     bpy.types.Scene.color_ramp_manager = PointerProperty(type=ColorRampManagerProperties)
 
 def unregister():
-    bpy.utils.unregister_class(ColorRampItem)
     bpy.utils.unregister_class(RGBCurveItem)
+    bpy.utils.unregister_class(ColorRampItem)
     bpy.utils.unregister_class(ColorRampManagerProperties)
+    bpy.utils.unregister_class(ColorRampPalette)
     bpy.utils.unregister_class(OBJECT_OT_create_horcrux)
     bpy.utils.unregister_class(OBJECT_OT_add_material)
     bpy.utils.unregister_class(MATERIAL_OT_add_color_ramp)
     bpy.utils.unregister_class(MATERIAL_OT_add_rgb_curve)
     bpy.utils.unregister_class(MATERIAL_OT_remove_color_ramp)
     bpy.utils.unregister_class(MATERIAL_OT_remove_rgb_curve)
-    bpy.utils.unregister_class(OBJECT_PT_horcrux_manager)
+    bpy.utils.unregister_class(OBJECT_PT_horcrux_manager)    
+    bpy.utils.unregister_class(AddColorToPalette)
+    bpy.utils.unregister_class(OT_GetColorRampPalette)
+    del bpy.types.Scene.color_ramp_palette
     del bpy.types.Scene.color_ramp_manager
 
 if __name__ == "__main__":
