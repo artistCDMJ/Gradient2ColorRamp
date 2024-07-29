@@ -23,6 +23,8 @@ Name your *Falloff Material* first to set with what kind of curves you are tryin
 
 *Remove Falloff* this will remove only the curve node that has been indicated with the unlock icon.
 
+*Get Color Ramp Palette*  - unlock your choice of color ramp gradient and press this to push a palette of color stops to a ColorRampPalette for fast matching of gradient to brush color.
+
 
 To not have to see the Falloff curves or not see the Colorramps, you can choose to display only one or the other in the Display options, calling Gradient category in both will block display off Falloff and vice versa.
 
