@@ -1,5 +1,5 @@
 # Gradient2ColorRamp
-Update number 2!
+Version 1.0.6
 
 Gradient and Falloff Manager panel is in the Paint tab.
 
@@ -24,6 +24,8 @@ Name your *Falloff Material* first to set with what kind of curves you are tryin
 *Remove Falloff* this will remove only the curve node that has been indicated with the unlock icon.
 
 *Get Color Ramp Palette*  - unlock your choice of color ramp gradient and press this to push a palette of color stops to a ColorRampPalette for fast matching of gradient to brush color.
+
+*Copy Color Ramp to Brush* this is that little paintbrush icon to the right of the Color Ramp Name. First unlock to make the color ramp active, and then press this to send the color ramp stops to the gradient of the active brush!
 
 
 To not have to see the Falloff curves or not see the Colorramps, you can choose to display only one or the other in the Display options, calling Gradient category in both will block display off Falloff and vice versa.
