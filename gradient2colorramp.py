@@ -1,8 +1,9 @@
+import bpy
 
 bl_info = {
     "name": "Gradient2ColorRamp",
     "author": "CDMJ",
-    "version": (1, 0, 5),
+    "version": (1, 0, 6),
     "blender": (3, 0, 0),
     "location": "Toolbar > Paint > Gradient2ColorRamp",
     "description": "Hack to use ColorRamps in materials to make Gradients and RGB Curve Nodes to hold Falloff",
@@ -10,7 +11,6 @@ bl_info = {
     "category": "Material"
 }
 
-import bpy
 from bpy.types import Panel, Operator, PropertyGroup
 from bpy.props import PointerProperty, FloatVectorProperty, StringProperty, CollectionProperty, BoolProperty, EnumProperty
 
@@ -30,7 +30,6 @@ class RGBCurveItem(bpy.types.PropertyGroup):
 class ColorRampItem(bpy.types.PropertyGroup):
     name: StringProperty(name="Ramp Name", default="")
     active: BoolProperty(name="Active", default=False)
-
 
 class ColorRampManagerProperties(bpy.types.PropertyGroup):
     ramp_list: CollectionProperty(type=ColorRampItem)
@@ -359,6 +358,52 @@ class MATERIAL_OT_remove_rgb_curve(bpy.types.Operator):
 
         return {'FINISHED'}
 
+### Operator to copy color ramp to brush gradient
+class OBJECT_OT_copy_color_ramp_to_brush(bpy.types.Operator):
+    bl_idname = "object.copy_color_ramp_to_brush"
+    bl_label = "Copy Color Ramp to Brush"
+
+    def execute(self, context):
+        # Get the active color ramp from the horcrux object
+        color_ramp = get_active_color_ramp("horcrux")
+        if not color_ramp:
+            self.report({'WARNING'}, "No active Color Ramp found in the horcrux object.")
+            return {'CANCELLED'}
+        
+        # Get the active brush
+        brush = context.tool_settings.image_paint.brush
+
+        if brush and color_ramp:
+            # Ensure the brush uses gradient color type
+            brush.color_type = 'GRADIENT'
+
+            # Access the brush gradient
+            brush_gradient = brush.gradient
+
+            # Store new elements data
+            new_elements = [(elem.position, elem.color) for elem in color_ramp.elements]
+            
+            # Ensure the brush gradient has enough elements
+            while len(brush_gradient.elements) < len(new_elements):
+                brush_gradient.elements.new(position=0)
+
+            # Reposition and recolor existing elements
+            for i, (pos, color) in enumerate(new_elements):
+                brush_gradient.elements[i].position = pos
+                brush_gradient.elements[i].color = color
+            
+            # Remove any extra elements in the brush gradient
+            while len(brush_gradient.elements) > len(new_elements):
+                brush_gradient.elements.remove(brush_gradient.elements[-1])
+                
+            self.report({'INFO'}, "Color ramp copied to brush gradient.")
+        else:
+            if not color_ramp:
+                self.report({'WARNING'}, "Active color ramp not found.")
+            if not brush:
+                self.report({'WARNING'}, "Active brush not found.")
+        
+        return {'FINISHED'}
 
 
 class OBJECT_PT_horcrux_manager(bpy.types.Panel):
@@ -404,6 +449,7 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
                 row.label(text="No Color Ramp Available")
 
         layout.operator(OT_GetColorRampPalette.bl_idname, text="Get Color Ramp Palette")
+        #layout.operator(OBJECT_OT_copy_color_ramp_to_brush.bl_idname, text="Copy Color Ramp to Brush Gradient")
             
 
         selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
@@ -418,6 +464,7 @@ class OBJECT_PT_horcrux_manager(bpy.types.Panel):
                         row = box.row()
                         row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
                         row.label(text=ramp.name)
+                        row.operator(OBJECT_OT_copy_color_ramp_to_brush.bl_idname, text="", icon='BRUSH_DATA')
                         box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
             else:
                 layout.label(text="No Color Ramps Added", icon='INFO')
@@ -473,8 +520,6 @@ class AddColorToPalette(Operator):
         return wm.invoke_props_dialog(self)
 
 
-
-
 ### Register and unregister functions
 def register():
     
@@ -491,6 +536,7 @@ def register():
     bpy.utils.register_class(MATERIAL_OT_remove_rgb_curve)
     bpy.utils.register_class(OBJECT_PT_horcrux_manager)    
     bpy.utils.register_class(AddColorToPalette)
+    bpy.utils.register_class(OBJECT_OT_copy_color_ramp_to_brush)
     
     bpy.types.Scene.color_ramp_palette = PointerProperty(type=ColorRampPalette)
     bpy.types.Scene.color_ramp_manager = PointerProperty(type=ColorRampManagerProperties)
@@ -509,6 +555,7 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_PT_horcrux_manager)    
     bpy.utils.unregister_class(AddColorToPalette)
     bpy.utils.unregister_class(OT_GetColorRampPalette)
+    bpy.utils.unregister_class(OBJECT_OT_copy_color_ramp_to_brush)
     del bpy.types.Scene.color_ramp_palette
     del bpy.types.Scene.color_ramp_manager
 
