@@ -27,6 +27,10 @@ Name your *Falloff Material* first to set with what kind of curves you are tryin
 
 *Copy Color Ramp to Brush* this is that little paintbrush icon to the right of the Color Ramp Name. First unlock to make the color ramp active, and then press this to send the color ramp stops to the gradient of the active brush!
 
+*Copy RGB Curve to Brush Falloff* this little brush icon will send the active rgb curve to the active brush falloff
+
+*Copy RGB Curve to Cavity Mask* this little monitor with arrow icon will send the active rgb curve to the Cavity Mask curve and turn on the cavity masking state
+
 
 To not have to see the Falloff curves or not see the Colorramps, you can choose to display only one or the other in the Display options, calling Gradient category in both will block display off Falloff and vice versa.
 
