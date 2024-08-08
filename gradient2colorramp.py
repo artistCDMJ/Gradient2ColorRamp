@@ -136,7 +136,8 @@ def set_brush_palette(colors):
         palette_color = palette.colors.new()
         palette_color.color = color[:3]
 
-class OT_GetColorRampPalette(Operator):
+class G2C_OT_GetColorRampPalette(Operator):
+    """Create Palette from Active Color Ramp"""
     bl_idname = "paint.get_color_ramp_palette"
     bl_label = "Get Color Ramp Palette"
 
@@ -153,13 +154,14 @@ class OT_GetColorRampPalette(Operator):
         self.report({'INFO'}, "Palette set from Color Ramp")
         return {'FINISHED'}
 
-class OT_CopyRGBCurveToBrushFalloff(Operator):
+class G2C_OT_CopyRGBCurveToBrushFalloff(Operator):
+    """Copy Active RGB Curve to Brush Falloff"""
     bl_idname = "paint.copy_rgb_curve_to_brush_falloff"
     bl_label = "Copy RGB Curve to Brush Falloff"
     bl_description = "Copy the active RGB curve from the Horcrux object to the active brush falloff"
 
     def execute(self, context):
-        print("Starting OT_CopyRGBCurveToBrushFalloff")
+        print("Starting G2C_OT_CopyRGBCurveToBrushFalloff")
         color_ramp_manager = bpy.context.scene.color_ramp_manager
         rgb_curve_node = get_active_rgb_curve("horcrux", color_ramp_manager.selected_curve_material)
         if not rgb_curve_node:
@@ -207,7 +209,8 @@ class OT_CopyRGBCurveToBrushFalloff(Operator):
         self.report({'INFO'}, "Copied RGB Curve to Brush Falloff Curve successfully.")
         return {'FINISHED'}
 
-class OT_CopyRGBCurveToCavityMask(Operator):
+class G2C_OT_CopyRGBCurveToCavityMask(Operator):
+    """Copy Active RGB Curve to Cavity Mask Curve"""
     bl_idname = "paint.copy_rgb_curve_to_cavity_mask"
     bl_label = "Copy RGB Curve to Cavity Mask"
     bl_description = "Copy the active RGB curve from the Horcrux object to the cavity mask"
@@ -280,9 +283,8 @@ class OT_CopyRGBCurveToCavityMask(Operator):
         return self.copy_rgb_curve_to_cavity_mask()
 
 
-
-
-class OBJECT_OT_create_horcrux(Operator):
+class G2C_OT_create_horcrux(Operator):
+    """Create Horcrux to Hold All Curves and Color Ramps in User Defined Material Categories"""
     bl_idname = "object.create_horcrux"
     bl_label = "Create Horcrux"
     bl_description = "Create a horcrux mesh grid object and add materials for color ramps and RGB curves"
@@ -344,7 +346,8 @@ class OBJECT_OT_create_horcrux(Operator):
 
         return {'FINISHED'}
 
-class OBJECT_OT_add_material(Operator):
+class G2C_OT_add_material(Operator):
+    """Add a New Material to the Horcrux to Act as a New Category of Curve or Colorramp"""
     bl_idname = "object.add_material"
     bl_label = "Add Material"
     bl_description = "Add a new material to the horcrux object"
@@ -383,7 +386,8 @@ class OBJECT_OT_add_material(Operator):
 
         return {'FINISHED'}
 
-class MATERIAL_OT_add_color_ramp(Operator):
+class G2C_OT_add_color_ramp(Operator):
+    """Add a New Color Ramp Node to the Horcrux Color Ramp Category Material"""
     bl_idname = "material.add_color_ramp"
     bl_label = "Add Color Ramp"
     bl_description = "Add a new Color Ramp node to the selected material"
@@ -407,7 +411,8 @@ class MATERIAL_OT_add_color_ramp(Operator):
 
         return {'FINISHED'}
 
-class MATERIAL_OT_add_rgb_curve(Operator):
+class G2C_OT_add_rgb_curve(Operator):
+    """Add a New RGB Curve Node to the Horcrux Material Category"""
     bl_idname = "material.add_rgb_curve"
     bl_label = "Add RGB Curve"
     bl_description = "Add a new RGB Curve node to the selected curve material"
@@ -450,9 +455,8 @@ class MATERIAL_OT_add_rgb_curve(Operator):
         return {'FINISHED'}
 
 
-
-
-class MATERIAL_OT_remove_color_ramp(Operator):
+class G2C_OT_remove_color_ramp(Operator):
+    """Remove the Active Color Ramp specified via the Unlock Icon"""
     bl_idname = "material.remove_color_ramp"
     bl_label = "Remove Color Ramp"
     bl_description = "Remove the selected Color Ramp node from the selected material"
@@ -481,7 +485,8 @@ class MATERIAL_OT_remove_color_ramp(Operator):
 
         return {'FINISHED'}
 
-class MATERIAL_OT_remove_rgb_curve(Operator):
+class G2C_OT_remove_rgb_curve(Operator):
+    """Remove the Active RGB Curve specified via the Unlock Icon"""
     bl_idname = "material.remove_rgb_curve"
     bl_label = "Remove RGB Curve"
     bl_description = "Remove the selected RGB Curve node from the selected curve material"
@@ -516,7 +521,8 @@ class MATERIAL_OT_remove_rgb_curve(Operator):
 
         return {'FINISHED'}
 
-class OBJECT_OT_copy_color_ramp_to_brush(Operator):
+class G2C_OT_copy_color_ramp_to_brush(Operator):
+    """Copy the Active Color Ramp to the Active Brush Gradient Color"""
     bl_idname = "object.copy_color_ramp_to_brush"
     bl_label = "Copy Color Ramp to Brush"
 
@@ -554,8 +560,9 @@ class OBJECT_OT_copy_color_ramp_to_brush(Operator):
         
         return {'FINISHED'}
 
-class OBJECT_PT_horcrux_manager(Panel):
-    bl_idname = "OBJECT_PT_horcrux_manager"
+class G2C_PT_horcrux_manager(Panel):
+    """UI for the Gradient and Falloff Manager"""
+    bl_idname = "G2C_PT_horcrux_manager"
     bl_label = "Gradient and Falloff Manager"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -578,12 +585,12 @@ class OBJECT_PT_horcrux_manager(Panel):
             layout.prop(color_ramp_manager, "selected_curve_material", text="Falloffs")
 
             row = layout.row()
-            row.operator("material.add_color_ramp", text="Add ColorRamp")
-            row.operator("material.remove_color_ramp", text="Remove ColorRamp")
+            row.operator("material.add_color_ramp", text="+ ColorRamp")
+            row.operator("material.remove_color_ramp", text="- ColorRamp")
 
             row = layout.row()
-            row.operator("material.add_rgb_curve", text="Add Falloff")
-            row.operator("material.remove_rgb_curve", text="Remove Falloff")
+            row.operator("material.add_rgb_curve", text="+ Falloff")
+            row.operator("material.remove_rgb_curve", text="- Falloff")
             
             row = layout.row()
             if palette.color_ramp_name and material and material.use_nodes:
@@ -596,7 +603,7 @@ class OBJECT_PT_horcrux_manager(Panel):
             else:
                 row.label(text="No Color Ramp Available")
 
-        layout.operator(OT_GetColorRampPalette.bl_idname, text="Get Color Ramp Palette")
+        layout.operator(G2C_G2C_OT_GetColorRampPalette.bl_idname, text="Get Color Ramp Palette")
 
         selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
         if selected_material and selected_material.use_nodes:
@@ -610,7 +617,7 @@ class OBJECT_PT_horcrux_manager(Panel):
                         row = box.row()
                         row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
                         row.label(text=ramp.name)
-                        row.operator(OBJECT_OT_copy_color_ramp_to_brush.bl_idname, text="", icon='BRUSH_DATA')
+                        row.operator(G2C_OT_copy_color_ramp_to_brush.bl_idname, text="", icon='BRUSH_DATA')
                         box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
             else:
                 layout.label(text="No Color Ramps Added", icon='INFO')
@@ -627,13 +634,13 @@ class OBJECT_PT_horcrux_manager(Panel):
                             row = box.row()
                             row.prop(curve, "active", text="", icon='VIEW_UNLOCKED' if curve.active else 'VIEW_LOCKED')
                             row.label(text=curve.name)
-                            row.operator(OT_CopyRGBCurveToBrushFalloff.bl_idname, text="", icon='BRUSH_DATA')
-                            row.operator(OT_CopyRGBCurveToCavityMask.bl_idname, text="", icon='SCREEN_BACK')
+                            row.operator(G2C_OT_CopyRGBCurveToBrushFalloff.bl_idname, text="", icon='BRUSH_DATA')
+                            row.operator(G2C_OT_CopyRGBCurveToCavityMask.bl_idname, text="", icon='SCREEN_BACK')
                             box.template_curve_mapping(data=rgb_curve_node, property="mapping", type='COLOR')
                 else:
                     layout.label(text="No RGB Curves Added", icon='INFO')
 
-class AddColorToPalette(Operator):
+class G2C_AddColorToPalette(Operator):
     bl_idname = "palette.add_color"
     bl_label = "Add Color to Palette"
 
@@ -674,18 +681,18 @@ def register():
     bpy.utils.register_class(ColorRampItem)
     bpy.utils.register_class(ColorRampManagerProperties)
     bpy.utils.register_class(ColorRampPalette)
-    bpy.utils.register_class(OT_GetColorRampPalette)
-    bpy.utils.register_class(OT_CopyRGBCurveToBrushFalloff)
-    bpy.utils.register_class(OT_CopyRGBCurveToCavityMask)
-    bpy.utils.register_class(OBJECT_OT_create_horcrux)
-    bpy.utils.register_class(OBJECT_OT_add_material)
-    bpy.utils.register_class(MATERIAL_OT_add_color_ramp)
-    bpy.utils.register_class(MATERIAL_OT_add_rgb_curve)
-    bpy.utils.register_class(MATERIAL_OT_remove_color_ramp)
-    bpy.utils.register_class(MATERIAL_OT_remove_rgb_curve)
-    bpy.utils.register_class(OBJECT_PT_horcrux_manager)
-    bpy.utils.register_class(AddColorToPalette)
-    bpy.utils.register_class(OBJECT_OT_copy_color_ramp_to_brush)
+    bpy.utils.register_class(G2C_OT_GetColorRampPalette)
+    bpy.utils.register_class(G2C_OT_CopyRGBCurveToBrushFalloff)
+    bpy.utils.register_class(G2C_OT_CopyRGBCurveToCavityMask)
+    bpy.utils.register_class(G2C_OT_create_horcrux)
+    bpy.utils.register_class(G2C_OT_add_material)
+    bpy.utils.register_class(G2C_OT_add_color_ramp)
+    bpy.utils.register_class(G2C_OT_add_rgb_curve)
+    bpy.utils.register_class(G2C_OT_remove_color_ramp)
+    bpy.utils.register_class(G2C_OT_remove_rgb_curve)
+    bpy.utils.register_class(G2C_PT_horcrux_manager)
+    bpy.utils.register_class(G2C_AddColorToPalette)
+    bpy.utils.register_class(G2C_OT_copy_color_ramp_to_brush)
     
     bpy.types.Scene.color_ramp_palette = PointerProperty(type=ColorRampPalette)
     bpy.types.Scene.color_ramp_manager = PointerProperty(type=ColorRampManagerProperties)
@@ -695,18 +702,18 @@ def unregister():
     bpy.utils.unregister_class(ColorRampItem)
     bpy.utils.unregister_class(ColorRampManagerProperties)
     bpy.utils.unregister_class(ColorRampPalette)
-    bpy.utils.unregister_class(OT_GetColorRampPalette)
-    bpy.utils.unregister_class(OT_CopyRGBCurveToBrushFalloff)
-    bpy.utils.unregister_class(OT_CopyRGBCurveToCavityMask)
-    bpy.utils.unregister_class(OBJECT_OT_create_horcrux)
-    bpy.utils.unregister_class(OBJECT_OT_add_material)
-    bpy.utils.unregister_class(MATERIAL_OT_add_color_ramp)
-    bpy.utils.unregister_class(MATERIAL_OT_add_rgb_curve)
-    bpy.utils.unregister_class(MATERIAL_OT_remove_color_ramp)
-    bpy.utils.unregister_class(MATERIAL_OT_remove_rgb_curve)
-    bpy.utils.unregister_class(OBJECT_PT_horcrux_manager)
-    bpy.utils.unregister_class(AddColorToPalette)
-    bpy.utils.unregister_class(OBJECT_OT_copy_color_ramp_to_brush)
+    bpy.utils.unregister_class(G2C_OT_GetColorRampPalette)
+    bpy.utils.unregister_class(G2C_OT_CopyRGBCurveToBrushFalloff)
+    bpy.utils.unregister_class(G2C_OT_CopyRGBCurveToCavityMask)
+    bpy.utils.unregister_class(G2C_OT_create_horcrux)
+    bpy.utils.unregister_class(G2C_OT_add_material)
+    bpy.utils.unregister_class(G2C_OT_add_color_ramp)
+    bpy.utils.unregister_class(G2C_OT_add_rgb_curve)
+    bpy.utils.unregister_class(G2C_OT_remove_color_ramp)
+    bpy.utils.unregister_class(G2C_OT_remove_rgb_curve)
+    bpy.utils.unregister_class(G2C_PT_horcrux_manager)
+    bpy.utils.unregister_class(G2C_AddColorToPalette)
+    bpy.utils.unregister_class(G2C_OT_copy_color_ramp_to_brush)
     del bpy.types.Scene.color_ramp_palette
     del bpy.types.Scene.color_ramp_manager
 
