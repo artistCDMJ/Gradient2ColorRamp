@@ -36,6 +36,7 @@ To not have to see the Falloff curves or not see the Colorramps, you can choose 
 
 Go have fun.
 
+![v1_0_8_G2C](https://github.com/user-attachments/assets/b34764ef-b08b-4ed5-94ea-522d28cb7ae7)
 
-![main_view_panel_to_tool](https://github.com/user-attachments/assets/e9d0cc2a-623d-457d-84fd-e43e8aa2540a)
-![compositor](https://github.com/user-attachments/assets/647c2196-a2b0-4f9b-ae39-967472869f86)
+
+
