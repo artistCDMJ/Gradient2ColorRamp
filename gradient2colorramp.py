@@ -292,28 +292,26 @@ class G2C_OT_create_horcrux(Operator):
     def execute(self, context):
         scene = context.scene
 
-        # Ensure the collection exists
         if "Gradients and Curves" not in bpy.data.collections:
             new_collection = bpy.data.collections.new("Gradients and Curves")
             bpy.context.scene.collection.children.link(new_collection)
         else:
             new_collection = bpy.data.collections["Gradients and Curves"]
 
-        # Ensure the horcrux object exists
         if "horcrux" not in bpy.data.objects:
             bpy.ops.mesh.primitive_grid_add(x_subdivisions=10, y_subdivisions=10, size=2)
             horcrux_object = bpy.context.active_object
             horcrux_object.name = "horcrux"
+            for collection in horcrux_object.users_collection:
+                collection.objects.unlink(horcrux_object)
+            new_collection.objects.link(horcrux_object)
+            bpy.context.view_layer.objects.active = horcrux_object
         else:
             horcrux_object = bpy.data.objects["horcrux"]
+            for collection in horcrux_object.users_collection:
+                collection.objects.unlink(horcrux_object)
+            new_collection.objects.link(horcrux_object)
 
-        # Move horcrux object to the collection
-        for collection in horcrux_object.users_collection:
-            collection.objects.unlink(horcrux_object)
-        new_collection.objects.link(horcrux_object)
-        bpy.context.view_layer.objects.active = horcrux_object
-
-        # Set up materials
         material_name = scene.color_ramp_manager.material_name
         if material_name:
             if material_name not in bpy.data.materials:
@@ -321,6 +319,7 @@ class G2C_OT_create_horcrux(Operator):
                 material.use_nodes = True
             else:
                 material = bpy.data.materials[material_name]
+                material.use_nodes = True
 
             if horcrux_object.data.materials:
                 horcrux_object.data.materials[0] = material
@@ -334,11 +333,10 @@ class G2C_OT_create_horcrux(Operator):
                 curve_material.use_nodes = True
             else:
                 curve_material = bpy.data.materials[curve_material_name]
+                curve_material.use_nodes = True
 
-            if curve_material_name not in horcrux_object.data.materials:
-                horcrux_object.data.materials.append(curve_material)
+            horcrux_object.data.materials.append(curve_material)
 
-        # Update the scene to recognize the new materials
         context.scene.color_ramp_manager.update_materials(context)
         
         view_layer = context.view_layer
@@ -574,7 +572,13 @@ class G2C_PT_horcrux_manager(Panel):
         layout = self.layout
         color_ramp_manager = context.scene.color_ramp_manager
         palette = context.scene.color_ramp_palette
-        
+        material = context.object.active_material
+
+        layout.prop(color_ramp_manager, "material_name", text="Gradient Category Name")
+        layout.prop(color_ramp_manager, "curve_material_name", text="Falloff Category Name")
+        layout.operator("object.create_horcrux", text="Create Horcrux")
+        layout.operator("object.add_material", text="Add Material")
+
         horcrux_object = bpy.data.objects.get("horcrux")
         if horcrux_object and horcrux_object.data.materials:
             layout.prop(color_ramp_manager, "selected_material", text="Gradients")
@@ -588,31 +592,53 @@ class G2C_PT_horcrux_manager(Panel):
             row.operator("material.add_rgb_curve", text="+ Falloff")
             row.operator("material.remove_rgb_curve", text="- Falloff")
             
-            # Iterate over all materials assigned to the horcrux object
-            for material in horcrux_object.data.materials:
-                if material and material.use_nodes:
-                    node_tree = material.node_tree
+            row = layout.row()
+            if palette.color_ramp_name and material and material.use_nodes:
+                node_tree = material.node_tree
+                color_ramp_node = node_tree.nodes.get(palette.color_ramp_name)
+                if color_ramp_node and color_ramp_node.type == 'VALTORGB':
+                    row.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
+                else:
+                    row.label(text="No Color Ramp Available")
+            else:
+                row.label(text="No Color Ramp Available")
 
-                    # Display existing Color Ramps
-                    for node in node_tree.nodes:
-                        if node.type == 'VALTORGB':
+        layout.operator(G2C_G2C_OT_GetColorRampPalette.bl_idname, text="Get Color Ramp Palette")
+
+        selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
+        if selected_material and selected_material.use_nodes:
+            node_tree = selected_material.node_tree
+
+            if color_ramp_manager.ramp_list:
+                for ramp in color_ramp_manager.ramp_list:
+                    if ramp.name in node_tree.nodes:
+                        color_ramp_node = node_tree.nodes[ramp.name]
+                        box = layout.box()
+                        row = box.row()
+                        row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
+                        row.label(text=ramp.name)
+                        row.operator(G2C_OT_copy_color_ramp_to_brush.bl_idname, text="", icon='BRUSH_DATA')
+                        box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
+            else:
+                layout.label(text="No Color Ramps Added", icon='INFO')
+
+            selected_curve_material = bpy.data.materials.get(color_ramp_manager.selected_curve_material)
+            if selected_curve_material and selected_curve_material.use_nodes:
+                node_tree = selected_curve_material.node_tree
+
+                if color_ramp_manager.curve_list:
+                    for curve in color_ramp_manager.curve_list:
+                        if curve.name in node_tree.nodes:
+                            rgb_curve_node = node_tree.nodes[curve.name]
                             box = layout.box()
                             row = box.row()
-                            row.label(text=node.name)
-                            box.template_color_ramp(node, "color_ramp", expand=True)
-
-                    # Display existing RGB Curves
-                    for node in node_tree.nodes:
-                        if node.type == 'CURVE_RGB':
-                            box = layout.box()
-                            row = box.row()
-                            row.label(text=node.name)
-                            box.template_curve_mapping(node, "mapping", type='COLOR')
-
-        else:
-            layout.label(text="No horcrux object found", icon='ERROR')
-
-        layout.operator("G2C_OT_get_color_ramp_palette", text="Get Color Ramp Palette")
+                            row.prop(curve, "active", text="", icon='VIEW_UNLOCKED' if curve.active else 'VIEW_LOCKED')
+                            row.label(text=curve.name)
+                            row.operator(G2C_OT_CopyRGBCurveToBrushFalloff.bl_idname, text="", icon='BRUSH_DATA')
+                            row.operator(G2C_OT_CopyRGBCurveToCavityMask.bl_idname, text="", icon='SCREEN_BACK')
+                            box.template_curve_mapping(data=rgb_curve_node, property="mapping", type='COLOR')
+                else:
+                    layout.label(text="No RGB Curves Added", icon='INFO')
 
 class G2C_AddColorToPalette(Operator):
     bl_idname = "palette.add_color"
