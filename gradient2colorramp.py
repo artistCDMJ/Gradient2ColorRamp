@@ -3,7 +3,7 @@ import bpy
 bl_info = {
     "name": "Gradient2ColorRamp",
     "author": "CDMJ",
-    "version": (1, 0, 8),
+    "version": (1, 0, 9),
     "blender": (3, 0, 0),
     "location": "Toolbar > Paint > Gradient2ColorRamp",
     "description": "Hack to use ColorRamps in materials to make Gradients and RGB Curve Nodes to hold Falloff",
@@ -625,31 +625,74 @@ class G2C_PT_horcrux_manager(Panel):
         color_ramp_manager = context.scene.color_ramp_manager
 
         # Dropdown to select the horcrux object
-        layout.prop(color_ramp_manager, "selected_horcrux", text="Horcrux Object")
+        layout = self.layout
+        split = layout.split(factor=0.5)
 
+        col = split.column()
+        col.label(text="Active Horcrux", icon='DOCUMENTS')
+
+        col = split.column()
+        col.prop(color_ramp_manager, "selected_horcrux", text="")
+        
         # The selected horcrux object
         horcrux_object = bpy.data.objects.get(color_ramp_manager.selected_horcrux)
         
         # Show the "Create Horcrux" button regardless of whether a horcrux is selected
-        layout.operator("object.create_horcrux", text="Create Horcrux")
+        layout.operator("object.create_horcrux", text="Create Horcrux", icon='NEWFOLDER')
         
         if horcrux_object:
-            layout.prop(color_ramp_manager, "material_name", text="Gradient Category Name")
-            layout.prop(color_ramp_manager, "curve_material_name", text="Falloff Category Name")
-            layout.operator("object.add_material", text="Add Material")
+            layout = self.layout
+            split = layout.split(factor=0.525)
+
+            col = split.column()
+            col.label(text="Gradient Category", icon='NODE_TEXTURE')
+
+            col = split.column()
+            col.prop(color_ramp_manager, "material_name", text="")
+            
+            layout = self.layout
+            split = layout.split(factor=0.525)
+
+            col = split.column()
+            col.label(text="Falloff Category", icon='RNDCURVE')
+
+            col = split.column()
+            col.prop(color_ramp_manager, "curve_material_name", text="")
+            
+            row=layout.row()    
+            row.operator("object.add_material", text="Add Categories", icon='LINENUMBERS_ON')
+            row.operator(G2C_OT_GetColorRampPalette.bl_idname, text="Extract Palette", icon='EYEDROPPER')
 
             # Dropdowns to select the materials
             if horcrux_object.data.materials:
-                layout.prop(color_ramp_manager, "selected_material", text="Gradients")
-                layout.prop(color_ramp_manager, "selected_curve_material", text="Falloffs")
+                
+                layout = self.layout
+                split = layout.split(factor=0.4)
+
+                col = split.column()
+                col.label(text="Display", icon='NODE_TEXTURE')
+
+                col = split.column()
+                col.prop(color_ramp_manager, "selected_material", text="")
+
+                layout = self.layout
+                split = layout.split(factor=0.4)
+
+                col = split.column()
+                col.label(text="Display", icon='RNDCURVE')
+
+                col = split.column()
+                col.prop(color_ramp_manager, "selected_curve_material", text="")
+                
+                row = layout.row()
+                row.label(text="Gradient Add/Remove")
+                row.operator("material.add_color_ramp", text="", icon='PLUS')
+                row.operator("material.remove_color_ramp", text="", icon='TRASH')
 
                 row = layout.row()
-                row.operator("material.add_color_ramp", text="+ ColorRamp")
-                row.operator("material.remove_color_ramp", text="- ColorRamp")
-
-                row = layout.row()
-                row.operator("material.add_rgb_curve", text="+ Falloff")
-                row.operator("material.remove_rgb_curve", text="- Falloff")
+                row.label(text="Falloff Add/Remove")
+                row.operator("material.add_rgb_curve", text="", icon='PLUS')
+                row.operator("material.remove_rgb_curve", text="", icon='TRASH')
 
                 # Show color ramps
                 selected_material = bpy.data.materials.get(color_ramp_manager.selected_material)
@@ -691,8 +734,6 @@ class G2C_PT_horcrux_manager(Panel):
 
         else:
             layout.label(text="No horcrux object selected", icon='ERROR')
-
-        layout.operator(G2C_OT_GetColorRampPalette.bl_idname, text="Get Color Ramp Palette")
 
 
 class G2C_AddColorToPalette(Operator):
