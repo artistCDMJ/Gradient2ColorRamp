@@ -3,7 +3,7 @@ import bpy
 bl_info = {
     "name": "Gradient2ColorRamp",
     "author": "CDMJ",
-    "version": (1, 0, 7),
+    "version": (1, 0, 8),
     "blender": (3, 0, 0),
     "location": "Toolbar > Paint > Gradient2ColorRamp",
     "description": "Hack to use ColorRamps in materials to make Gradients and RGB Curve Nodes to hold Falloff",
@@ -86,16 +86,14 @@ class ColorRampManagerProperties(PropertyGroup):
                                 new_curve.name = node.name
                                 new_curve.active = False  # Default inactive
                                 
-            # Update the selected material and curve material properties
+            # Update the selected material and curve material properties only if there are materials
             materials = [(mat.name, mat.name, "") for mat in horcrux_object.data.materials]
             if materials:
-                self.selected_material = materials[0][0]
-                self.selected_curve_material = materials[0][0]
-            else:
-                self.selected_material = ""
-                self.selected_curve_material = ""
+                self.selected_material = materials[0][0] if materials else ""
+                self.selected_curve_material = materials[0][0] if materials else ""
         
         else:
+            # Avoid setting to None; reset to empty string if no horcrux is selected
             self.selected_material = ""
             self.selected_curve_material = ""
 
@@ -625,17 +623,19 @@ class G2C_PT_horcrux_manager(Panel):
     def draw(self, context):
         layout = self.layout
         color_ramp_manager = context.scene.color_ramp_manager
-        palette = context.scene.color_ramp_palette
 
         # Dropdown to select the horcrux object
         layout.prop(color_ramp_manager, "selected_horcrux", text="Horcrux Object")
 
         # The selected horcrux object
         horcrux_object = bpy.data.objects.get(color_ramp_manager.selected_horcrux)
+        
+        # Show the "Create Horcrux" button regardless of whether a horcrux is selected
+        layout.operator("object.create_horcrux", text="Create Horcrux")
+        
         if horcrux_object:
             layout.prop(color_ramp_manager, "material_name", text="Gradient Category Name")
             layout.prop(color_ramp_manager, "curve_material_name", text="Falloff Category Name")
-            layout.operator("object.create_horcrux", text="Create Horcrux")
             layout.operator("object.add_material", text="Add Material")
 
             # Dropdowns to select the materials
