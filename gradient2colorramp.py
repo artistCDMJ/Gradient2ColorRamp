@@ -340,6 +340,11 @@ class G2C_OT_create_horcrux(Operator):
     bl_idname = "object.create_horcrux"
     bl_label = "Create Horcrux"
     bl_description = "Create a horcrux mesh grid object and add materials for color ramps and RGB curves"
+    
+    @classmethod
+    def poll(cls, context):
+        # Check if any object in the scene has 'horcrux' in its name
+        return not any("horcrux" in obj.name for obj in bpy.data.objects)
 
     def execute(self, context):
         scene = context.scene
