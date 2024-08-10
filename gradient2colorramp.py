@@ -34,6 +34,13 @@ class ColorRampItem(PropertyGroup):
 from bpy.types import PropertyGroup
 from bpy.props import StringProperty, CollectionProperty, EnumProperty
 
+def get_active_horcrux(context):
+    """Retrieve the currently selected horcrux object based on the UI selection."""
+    color_ramp_manager = context.scene.color_ramp_manager
+    horcrux_name = color_ramp_manager.selected_horcrux
+    return bpy.data.objects.get(horcrux_name)
+
+
 class ColorRampManagerProperties(PropertyGroup):
     ramp_list: CollectionProperty(type=ColorRampItem)
     curve_list: CollectionProperty(type=RGBCurveItem)
@@ -119,16 +126,16 @@ class ColorRampManagerProperties(PropertyGroup):
 class ColorRampPalette(PropertyGroup):
     color_ramp_name: StringProperty()
 
-def get_active_color_ramp(object_name):
-    obj = bpy.data.objects.get(object_name)
-    if not obj:
+def get_active_color_ramp(context):
+    horcrux_object = get_active_horcrux(context)
+    if not horcrux_object:
         return None
 
-    material = obj.active_material
+    material = horcrux_object.active_material
     if not material or not material.use_nodes:
         return None
 
-    color_ramp_manager = bpy.context.scene.color_ramp_manager
+    color_ramp_manager = context.scene.color_ramp_manager
 
     for ramp in color_ramp_manager.ramp_list:
         if ramp.active:
@@ -140,10 +147,11 @@ def get_active_color_ramp(object_name):
 
     return None
 
-def get_active_rgb_curve(object_name, material_name):
-    obj = bpy.data.objects.get(object_name)
-    if not obj:
-        print(f"Object '{object_name}' not found.")
+
+def get_active_rgb_curve(context, material_name):
+    horcrux_object = get_active_horcrux(context)
+    if not horcrux_object:
+        print("No active horcrux object found.")
         return None
 
     material = bpy.data.materials.get(material_name)
@@ -151,27 +159,17 @@ def get_active_rgb_curve(object_name, material_name):
         print(f"Material '{material_name}' not found or does not use nodes.")
         return None
 
-    color_ramp_manager = bpy.context.scene.color_ramp_manager
-
+    color_ramp_manager = context.scene.color_ramp_manager
     node_tree = material.node_tree
-    print(f"Material: {material.name}")
-    print("Nodes in the material's node tree:")
-    for node in node_tree.nodes:
-        print(f"Node: {node.name}, Type: {node.type}")
 
     for curve in color_ramp_manager.curve_list:
-        print(f"Checking curve: {curve.name}, active: {curve.active}")
-        if curve.active:
-            if curve.name in node_tree.nodes:
-                node = node_tree.nodes[curve.name]
-                if node.type == 'CURVE_RGB':
-                    print(f"Found active RGB Curve node: {node.name}")
-                    return node
-            else:
-                print(f"Curve node '{curve.name}' not found in node tree.")
+        if curve.active and curve.name in node_tree.nodes:
+            node = node_tree.nodes[curve.name]
+            if node.type == 'CURVE_RGB':
+                return node
 
-    print("No active RGB Curve node found.")
     return None
+
 
 
 
@@ -194,10 +192,9 @@ class G2C_OT_GetColorRampPalette(Operator):
     bl_label = "Get Color Ramp Palette"
 
     def execute(self, context):
-        object_name = "horcrux"
-        color_ramp = get_active_color_ramp(object_name)
+        color_ramp = get_active_color_ramp(context)
         if not color_ramp:
-            self.report({'WARNING'}, f"No active Color Ramp found in {object_name}")
+            self.report({'WARNING'}, "No active Color Ramp found in the selected horcrux.")
             return {'CANCELLED'}
 
         colors = [element.color for element in color_ramp.elements]
@@ -206,60 +203,49 @@ class G2C_OT_GetColorRampPalette(Operator):
         self.report({'INFO'}, "Palette set from Color Ramp")
         return {'FINISHED'}
 
+
 class G2C_OT_CopyRGBCurveToBrushFalloff(Operator):
     """Copy Active RGB Curve to Brush Falloff"""
     bl_idname = "paint.copy_rgb_curve_to_brush_falloff"
     bl_label = "Copy RGB Curve to Brush Falloff"
-    bl_description = "Copy the active RGB curve from the Horcrux object to the active brush falloff"
+    bl_description = "Copy the active RGB curve from the selected horcrux object to the active brush falloff"
 
     def execute(self, context):
-        print("Starting G2C_OT_CopyRGBCurveToBrushFalloff")
-        color_ramp_manager = bpy.context.scene.color_ramp_manager
-        rgb_curve_node = get_active_rgb_curve("horcrux", color_ramp_manager.selected_curve_material)
+        color_ramp_manager = context.scene.color_ramp_manager
+        rgb_curve_node = get_active_rgb_curve(context, color_ramp_manager.selected_curve_material)
         if not rgb_curve_node:
-            self.report({'WARNING'}, "No active RGB Curve node found in the horcrux object.")
+            self.report({'WARNING'}, "No active RGB Curve node found in the selected horcrux object.")
             return {'CANCELLED'}
         
-        tool_settings = context.tool_settings
-        brush = None
-
-        if context.mode == 'PAINT_TEXTURE':
-            brush = tool_settings.image_paint.brush
-        elif context.mode == 'PAINT_VERTEX':
-            brush = tool_settings.vertex_paint.brush
-        elif context.mode == 'PAINT_WEIGHT':
-            brush = tool_settings.weight_paint.brush
-        elif context.mode == 'SCULPT':
-            brush = tool_settings.sculpt.brush
-
+        brush = context.tool_settings.image_paint.brush
         if not brush:
             self.report({'WARNING'}, "No active brush found.")
             return {'CANCELLED'}
-        
+
         brush.curve_preset = 'CUSTOM'
-        
+
         if not hasattr(brush, 'curve'):
             self.report({'WARNING'}, "The active brush does not have a falloff curve.")
             return {'CANCELLED'}
-        
+
         curve_mapping = brush.curve
         curve = curve_mapping.curves[0]
-        
         composite_curve = rgb_curve_node.mapping.curves[3]
-        
+
         points_list = [(point.location[0], point.location[1]) for point in composite_curve.points]
-        
+
         while len(curve.points) < len(points_list):
             curve.points.new(0, 0)
-        
+
         for i, (x, y) in enumerate(points_list):
             curve.points[i].location = (x, y)
-        
+
         curve_mapping.update()
         context.area.tag_redraw()
-        
+
         self.report({'INFO'}, "Copied RGB Curve to Brush Falloff Curve successfully.")
         return {'FINISHED'}
+
 
 class G2C_OT_CopyRGBCurveToCavityMask(Operator):
     """Copy Active RGB Curve to Cavity Mask Curve"""
@@ -349,27 +335,49 @@ class G2C_OT_create_horcrux(Operator):
     def execute(self, context):
         scene = context.scene
 
-        if "Gradients and Curves" not in bpy.data.collections:
-            new_collection = bpy.data.collections.new("Gradients and Curves")
+        # Ensure the "Gradients and Curves" collection exists
+        collection_name = "Gradients and Curves"
+        if collection_name not in bpy.data.collections:
+            new_collection = bpy.data.collections.new(collection_name)
             bpy.context.scene.collection.children.link(new_collection)
         else:
-            new_collection = bpy.data.collections["Gradients and Curves"]
+            new_collection = bpy.data.collections[collection_name]
 
+        # Create the horcrux object if it doesn't exist
         if "horcrux" not in bpy.data.objects:
             bpy.ops.mesh.primitive_grid_add(x_subdivisions=10, y_subdivisions=10, size=2)
             horcrux_object = bpy.context.active_object
             horcrux_object.name = "horcrux"
+            # Remove from the default collection and add to the custom collection
             for collection in horcrux_object.users_collection:
                 collection.objects.unlink(horcrux_object)
             new_collection.objects.link(horcrux_object)
             bpy.context.view_layer.objects.active = horcrux_object
         else:
+            # If a horcrux object already exists, manage its collections
             horcrux_object = bpy.data.objects["horcrux"]
             for collection in horcrux_object.users_collection:
                 collection.objects.unlink(horcrux_object)
             new_collection.objects.link(horcrux_object)
 
-        material_name = scene.color_ramp_manager.material_name
+        # Dynamically assign materials
+        self.assign_material_to_object(horcrux_object, scene.color_ramp_manager.material_name)
+        self.assign_material_to_object(horcrux_object, scene.color_ramp_manager.curve_material_name)
+
+        # Update materials in the manager
+        context.scene.color_ramp_manager.update_materials(context)
+        
+        # Optionally, exclude the new collection from the current view layer
+        view_layer = context.view_layer
+        layer_collection = view_layer.layer_collection.children.get(new_collection.name)
+        if layer_collection:
+            layer_collection.exclude = True
+
+        self.report({'INFO'}, "Horcrux created successfully.")
+        return {'FINISHED'}
+
+    def assign_material_to_object(self, obj, material_name):
+        """Helper function to assign a material to the object."""
         if material_name:
             if material_name not in bpy.data.materials:
                 material = bpy.data.materials.new(name=material_name)
@@ -378,30 +386,14 @@ class G2C_OT_create_horcrux(Operator):
                 material = bpy.data.materials[material_name]
                 material.use_nodes = True
 
-            if horcrux_object.data.materials:
-                horcrux_object.data.materials[0] = material
+            if obj.data.materials:
+                if material not in obj.data.materials:
+                    obj.data.materials.append(material)
+                else:
+                    obj.data.materials[0] = material
             else:
-                horcrux_object.data.materials.append(material)
+                obj.data.materials.append(material)
 
-        curve_material_name = scene.color_ramp_manager.curve_material_name
-        if curve_material_name:
-            if curve_material_name not in bpy.data.materials:
-                curve_material = bpy.data.materials.new(name=curve_material_name)
-                curve_material.use_nodes = True
-            else:
-                curve_material = bpy.data.materials[curve_material_name]
-                curve_material.use_nodes = True
-
-            horcrux_object.data.materials.append(curve_material)
-
-        context.scene.color_ramp_manager.update_materials(context)
-        
-        view_layer = context.view_layer
-        layer_collection = view_layer.layer_collection.children.get(new_collection.name)
-        if layer_collection:
-            layer_collection.exclude = True
-
-        return {'FINISHED'}
 
 class G2C_OT_add_material(Operator):
     """Add a New Material to the Horcrux to Act as a New Category of Curve or Colorramp"""
@@ -412,36 +404,36 @@ class G2C_OT_add_material(Operator):
     def execute(self, context):
         scene = context.scene
         color_ramp_manager = scene.color_ramp_manager
-        horcrux_object = bpy.data.objects.get("horcrux")
+        horcrux_object = get_active_horcrux(context)
 
         if horcrux_object:
-            ramp_material_name = color_ramp_manager.material_name
-            if ramp_material_name:
-                if ramp_material_name not in bpy.data.materials:
-                    ramp_material = bpy.data.materials.new(name=ramp_material_name)
-                    ramp_material.use_nodes = True
-                else:
-                    ramp_material = bpy.data.materials[ramp_material_name]
-                    ramp_material.use_nodes = True
+            # Add or get the ramp material and assign it to the horcrux object
+            self.assign_material_to_object(horcrux_object, color_ramp_manager.material_name)
+            # Add or get the curve material and assign it to the horcrux object
+            self.assign_material_to_object(horcrux_object, color_ramp_manager.curve_material_name)
 
-                if ramp_material_name not in horcrux_object.data.materials.keys():
-                    horcrux_object.data.materials.append(ramp_material)
-
-            curve_material_name = color_ramp_manager.curve_material_name
-            if curve_material_name:
-                if curve_material_name not in bpy.data.materials:
-                    curve_material = bpy.data.materials.new(name=curve_material_name)
-                    curve_material.use_nodes = True
-                else:
-                    curve_material = bpy.data.materials[curve_material_name]
-                    curve_material.use_nodes = True
-
-                if curve_material_name not in horcrux_object.data.materials.keys():
-                    horcrux_object.data.materials.append(curve_material)
-
-            context.scene.color_ramp_manager.update_materials(context)
+            # Update the materials in the color ramp manager
+            color_ramp_manager.update_materials(context)
 
         return {'FINISHED'}
+
+    def assign_material_to_object(self, obj, material_name):
+        """Helper function to assign a material to the object."""
+        if material_name:
+            # Check if the material already exists in bpy.data.materials
+            if material_name not in bpy.data.materials:
+                # Create the material if it doesn't exist
+                material = bpy.data.materials.new(name=material_name)
+                material.use_nodes = True
+            else:
+                # Get the existing material
+                material = bpy.data.materials[material_name]
+                material.use_nodes = True
+
+            # Add the material to the object if it isn't already present
+            if material not in obj.data.materials:
+                obj.data.materials.append(material)
+
 
 class G2C_OT_add_color_ramp(Operator):
     """Add a New Color Ramp Node to the Horcrux Color Ramp Category Material"""
@@ -452,7 +444,7 @@ class G2C_OT_add_color_ramp(Operator):
     def execute(self, context):
         scene = context.scene
         color_ramp_manager = scene.color_ramp_manager
-        horcrux_object = bpy.data.objects.get("horcrux")
+        horcrux_object = get_active_horcrux(context)
 
         if horcrux_object and horcrux_object.data.materials:
             material = bpy.data.materials.get(color_ramp_manager.selected_material)
@@ -477,7 +469,7 @@ class G2C_OT_add_rgb_curve(Operator):
     def execute(self, context):
         scene = context.scene
         color_ramp_manager = scene.color_ramp_manager
-        horcrux_object = bpy.data.objects.get("horcrux")
+        horcrux_object = get_active_horcrux(context)
 
         if horcrux_object and horcrux_object.data.materials:
             material = bpy.data.materials.get(color_ramp_manager.selected_curve_material)
@@ -521,7 +513,7 @@ class G2C_OT_remove_color_ramp(Operator):
     def execute(self, context):
         scene = context.scene
         color_ramp_manager = scene.color_ramp_manager
-        horcrux_object = bpy.data.objects.get("horcrux")
+        horcrux_object = get_active_horcrux(context)
         ramp_list = color_ramp_manager.ramp_list
 
         if horcrux_object and horcrux_object.data.materials:
@@ -551,7 +543,7 @@ class G2C_OT_remove_rgb_curve(Operator):
     def execute(self, context):
         scene = context.scene
         color_ramp_manager = scene.color_ramp_manager
-        horcrux_object = bpy.data.objects.get("horcrux")
+        horcrux_object = get_active_horcrux(context)
         curve_list = color_ramp_manager.curve_list
 
         if horcrux_object and horcrux_object.data.materials:
@@ -584,38 +576,38 @@ class G2C_OT_copy_color_ramp_to_brush(Operator):
     bl_label = "Copy Color Ramp to Brush"
 
     def execute(self, context):
-        color_ramp = get_active_color_ramp("horcrux")
+        color_ramp = get_active_color_ramp(context)
         if not color_ramp:
-            self.report({'WARNING'}, "No active Color Ramp found in the horcrux object.")
+            self.report({'WARNING'}, "No active Color Ramp found in the selected horcrux object.")
             return {'CANCELLED'}
         
         brush = context.tool_settings.image_paint.brush
 
         if brush and color_ramp:
             brush.color_type = 'GRADIENT'
-
             brush_gradient = brush.gradient
 
             new_elements = [(elem.position, elem.color) for elem in color_ramp.elements]
-            
+
             while len(brush_gradient.elements) < len(new_elements):
                 brush_gradient.elements.new(position=0)
 
             for i, (pos, color) in enumerate(new_elements):
                 brush_gradient.elements[i].position = pos
                 brush_gradient.elements[i].color = color
-            
+
             while len(brush_gradient.elements) > len(new_elements):
                 brush_gradient.elements.remove(brush_gradient.elements[-1])
-                
+
             self.report({'INFO'}, "Color ramp copied to brush gradient.")
         else:
             if not color_ramp:
                 self.report({'WARNING'}, "Active color ramp not found.")
             if not brush:
                 self.report({'WARNING'}, "Active brush not found.")
-        
+
         return {'FINISHED'}
+
 
 class G2C_PT_horcrux_manager(Panel):
     """UI for the Gradient and Falloff Manager"""
