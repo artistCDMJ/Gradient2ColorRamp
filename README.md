@@ -34,7 +34,8 @@ To not have to see the Falloff curves or not see the Colorramps, you can choose 
 
 Go have fun.
 
-![v1_0_8_G2C](https://github.com/user-attachments/assets/b34764ef-b08b-4ed5-94ea-522d28cb7ae7)
+![test horcrux paint](https://github.com/user-attachments/assets/f230c33e-b450-4010-9c00-2145fef6284f)
+
 
 
 
