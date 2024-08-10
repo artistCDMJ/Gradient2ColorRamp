@@ -1,5 +1,5 @@
 # Gradient2ColorRamp
-Version 1.0.6
+Version 1.0.9
 
 Gradient and Falloff Manager panel is in the Paint tab.
 
