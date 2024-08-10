@@ -148,26 +148,22 @@ def get_active_color_ramp(context):
     return None
 
 
-def get_active_rgb_curve(context, material_name):
-    horcrux_object = get_active_horcrux(context)
-    if not horcrux_object:
-        print("No active horcrux object found.")
+def get_active_rgb_curve(horcrux_name, selected_curve_material):
+    """Retrieve the active RGB curve node from the Horcrux object."""
+    obj = bpy.data.objects.get(horcrux_name)
+    if not obj:
         return None
-
-    material = bpy.data.materials.get(material_name)
-    if not material or not material.use_nodes:
-        print(f"Material '{material_name}' not found or does not use nodes.")
+    
+    # Assuming selected_curve_material is the name of a material
+    material = obj.material_slots.get(selected_curve_material).material if obj.material_slots else None
+    if not material:
         return None
-
-    color_ramp_manager = context.scene.color_ramp_manager
-    node_tree = material.node_tree
-
-    for curve in color_ramp_manager.curve_list:
-        if curve.active and curve.name in node_tree.nodes:
-            node = node_tree.nodes[curve.name]
-            if node.type == 'CURVE_RGB':
-                return node
-
+    
+    # Assuming the RGB curve is within a specific node group
+    for node in material.node_tree.nodes:
+        if node.type == 'CURVE_RGB':
+            return node
+    
     return None
 
 
@@ -247,7 +243,7 @@ class G2C_OT_CopyRGBCurveToBrushFalloff(Operator):
         return {'FINISHED'}
 
 
-class G2C_OT_CopyRGBCurveToCavityMask(Operator):
+class G2C_OT_CopyRGBCurveToCavityMask(bpy.types.Operator):
     """Copy Active RGB Curve to Cavity Mask Curve"""
     bl_idname = "paint.copy_rgb_curve_to_cavity_mask"
     bl_label = "Copy RGB Curve to Cavity Mask"
@@ -262,21 +258,21 @@ class G2C_OT_CopyRGBCurveToCavityMask(Operator):
         for i, point in enumerate(curve.points):
             print(f"  Point {i}: {point.location}")
 
-    def copy_rgb_curve_to_cavity_mask(self):
-        obj = bpy.data.objects.get("horcrux")
+    def copy_rgb_curve_to_cavity_mask(self, context):
+        obj = get_active_horcrux(context)
         if not obj:
             self.report({'WARNING'}, "No Horcrux object found.")
             return {'CANCELLED'}
 
-        color_ramp_manager = bpy.context.scene.color_ramp_manager
-        rgb_curve_node = get_active_rgb_curve("horcrux", color_ramp_manager.selected_curve_material)
+        color_ramp_manager = context.scene.color_ramp_manager
+        rgb_curve_node = get_active_rgb_curve(obj.name, color_ramp_manager.selected_curve_material)
         if not rgb_curve_node:
-            self.report({'WARNING'}, "No active RGB Curve node found in the horcrux object.")
+            self.report({'WARNING'}, "No active RGB Curve node found in the selected Horcrux object.")
             return {'CANCELLED'}
 
         self.enable_cavity_masking()
 
-        cavity_curve = bpy.context.scene.tool_settings.image_paint.cavity_curve.curves[0]
+        cavity_curve = context.scene.tool_settings.image_paint.cavity_curve.curves[0]
         composite_curve = rgb_curve_node.mapping.curves[3]
 
         if not composite_curve.points:
@@ -309,7 +305,7 @@ class G2C_OT_CopyRGBCurveToCavityMask(Operator):
         for point in cavity_curve.points:
             point.handle_type = 'AUTO'
 
-        bpy.context.scene.tool_settings.image_paint.cavity_curve.update()
+        context.scene.tool_settings.image_paint.cavity_curve.update()
 
         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
@@ -318,7 +314,7 @@ class G2C_OT_CopyRGBCurveToCavityMask(Operator):
         return {'FINISHED'}
 
     def execute(self, context):
-        return self.copy_rgb_curve_to_cavity_mask()
+        return self.copy_rgb_curve_to_cavity_mask(context)
 
 
 class G2C_OT_create_horcrux(Operator):
