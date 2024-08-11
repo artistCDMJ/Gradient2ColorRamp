@@ -150,7 +150,7 @@ def get_active_color_ramp(context):
 
 def get_active_rgb_curve(horcrux_name, selected_curve_material):
     """Retrieve the active RGB curve node from the Horcrux object."""
-    obj = bpy.data.objects.get(horcrux_name)
+    obj = bpy.data.objects.get(horcrux_name) #line 153
     if not obj:
         return None
     
@@ -208,7 +208,11 @@ class G2C_OT_CopyRGBCurveToBrushFalloff(Operator):
 
     def execute(self, context):
         color_ramp_manager = context.scene.color_ramp_manager
-        rgb_curve_node = get_active_rgb_curve(context, color_ramp_manager.selected_curve_material)
+        horcrux_name = color_ramp_manager.selected_horcrux
+        selected_curve_material = color_ramp_manager.selected_curve_material
+
+        
+        rgb_curve_node = get_active_rgb_curve(horcrux_name, selected_curve_material)
         if not rgb_curve_node:
             self.report({'WARNING'}, "No active RGB Curve node found in the selected horcrux object.")
             return {'CANCELLED'}
