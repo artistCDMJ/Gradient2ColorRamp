@@ -1,5 +1,5 @@
 # Gradient2ColorRamp
-Version 1.0.9
+Version 1.1.0
 
 Gradient and Falloff Manager panel is in the Paint tab.
 
@@ -25,16 +25,23 @@ Name your *Falloff Category* first to set with what kind of curves you are tryin
 
 *Copy Gradient to Brush* this is that little paintbrush icon to the right of the Color Ramp Name. First unlock to make the color ramp active, and then press this to send the color ramp stops to the gradient of the active brush!
 
+*Copy Brush to Gradient* this is the reverse - press the little pull odwn icon once active to copt the active gradient to the color ramp in the ui
+
 *Copy Curve to Brush Falloff* this little brush icon will send the active rgb curve to the active brush falloff
 
+*Copy Falloff to Curve* this pull down icon will copy the current Brush Falloff to the active rgb curve in the ui
+
 *Copy Curve to Cavity Mask* this little monitor with arrow icon will send the active rgb curve to the Cavity Mask curve and turn on the cavity masking state
+
+*Gradient from Palette* - small utility button in the Tools panel once the Palette is open - for less than 32 stops, this will make a new gradient from an open palette fro the brush
 
 
 To not have to see the Falloff curves or not see the Colorramps, you can choose to display only one or the other in the Display options, calling Gradient category in both will block display off Falloff and vice versa.
 
 Go have fun.
 
-![test horcrux paint](https://github.com/user-attachments/assets/f230c33e-b450-4010-9c00-2145fef6284f)
+
+![revision110](https://github.com/user-attachments/assets/5b65828c-9f53-468a-befd-6580754cc4d6)
 
 
 
