@@ -404,7 +404,7 @@ class G2C_OT_add_material(Operator):
 
         if horcrux_object:
             # Add or get the ramp material and assign it to the horcrux object
-            self.assign_material_to_object(horcrux_object, color_ramp_manager.material_name)
+            self.assign_material_to_object(horcrux_object, color_ramp_manager.material_name) 
             # Add or get the curve material and assign it to the horcrux object
             self.assign_material_to_object(horcrux_object, color_ramp_manager.curve_material_name)
 
@@ -427,7 +427,7 @@ class G2C_OT_add_material(Operator):
                 material.use_nodes = True
 
             # Add the material to the object if it isn't already present
-            if material not in obj.data.materials:
+            if material.name not in obj.data.materials:
                 obj.data.materials.append(material)
 
 
