@@ -3,7 +3,7 @@ import bpy
 bl_info = {
     "name": "Gradient2ColorRamp",
     "author": "CDMJ",
-    "version": (1, 0, 9),
+    "version": (1, 1, 0),
     "blender": (3, 0, 0),
     "location": "Toolbar > Paint > Gradient2ColorRamp",
     "description": "Hack to use ColorRamps in materials to make Gradients and RGB Curve Nodes to hold Falloff",
@@ -126,6 +126,73 @@ class ColorRampManagerProperties(PropertyGroup):
 class ColorRampPalette(PropertyGroup):
     color_ramp_name: StringProperty()
 
+
+def copy_brush_gradient_to_color_ramp(context):
+    brush = context.tool_settings.image_paint.brush
+    color_ramp_manager = context.scene.color_ramp_manager
+    
+    if not brush or brush.color_type != 'GRADIENT':
+        print("No valid brush gradient found.")
+        return None
+
+    # Retrieve the active color ramp node
+    color_ramp_node = get_active_color_ramp(context)
+    if not color_ramp_node:
+        print("No active color ramp found.")
+        return None
+
+    # Access the color ramp elements
+    color_ramp = color_ramp_node.color_ramp
+    brush_gradient = brush.gradient
+
+    # Copy the points from the brush gradient to the color ramp
+    new_elements = [(elem.position, elem.color) for elem in brush_gradient.elements]
+
+    # Ensure there are enough elements in the color ramp
+    while len(color_ramp.elements) < len(new_elements):
+        color_ramp.elements.new(0)
+
+    # Update the color ramp elements
+    for i, (pos, color) in enumerate(new_elements):
+        color_ramp.elements[i].position = pos
+        color_ramp.elements[i].color = color
+
+    # Remove extra elements from the color ramp if necessary
+    while len(color_ramp.elements) > len(new_elements):
+        color_ramp.elements.remove(color_ramp.elements[-1])
+
+    return color_ramp
+
+
+def copy_brush_falloff_to_rgb_curve(context):
+    brush = context.tool_settings.image_paint.brush
+    color_ramp_manager = context.scene.color_ramp_manager
+    
+    if not brush or not hasattr(brush, 'curve'):
+        print("No valid brush falloff curve found.")
+        return None
+
+    rgb_curve_node = get_active_rgb_curve(color_ramp_manager.selected_horcrux, color_ramp_manager.selected_curve_material)
+    if not rgb_curve_node:
+        print("No active RGB curve found.")
+        return None
+
+    brush_curve = brush.curve.curves[0]
+    rgb_curve = rgb_curve_node.mapping.curves[3]
+
+    # Copy the points from the brush falloff to the RGB curve
+    for point in brush_curve.points:
+        new_point = rgb_curve.points.new(point.location[0], point.location[1])
+
+    # Set handle types, if necessary
+    for point in rgb_curve.points:
+        point.handle_type = 'AUTO'
+
+    rgb_curve_node.mapping.update()
+
+    return rgb_curve_node
+
+
 def get_active_color_ramp(context):
     horcrux_object = get_active_horcrux(context)
     if not horcrux_object:
@@ -143,7 +210,7 @@ def get_active_color_ramp(context):
             if ramp.name in node_tree.nodes:
                 node = node_tree.nodes[ramp.name]
                 if node.type == 'VALTORGB':
-                    return node.color_ramp
+                    return node  # Return the ShaderNodeValToRGB node itself
 
     return None
 
@@ -169,18 +236,28 @@ def get_active_rgb_curve(horcrux_name, selected_curve_material):
 
 
 
-def set_brush_palette(colors):
-    palette_name = "ColorRampPalette"
+def set_brush_palette(colors, color_ramp_node_name):
+    # Create the palette name using the color ramp's node name
+    palette_name = f"{color_ramp_node_name}_Palette"
+    
+    # Check if a palette with that name already exists
     palette = bpy.data.palettes.get(palette_name)
 
+    # If it doesn't exist, create a new palette
     if not palette:
         palette = bpy.data.palettes.new(palette_name)
 
+    # Clear any existing colors in the palette
     palette.colors.clear()
 
+    # Add the new colors to the palette
     for color in colors:
         palette_color = palette.colors.new()
         palette_color.color = color[:3]
+    
+    return palette_name
+
+
 
 class G2C_OT_GetColorRampPalette(Operator):
     """Create Palette from Active Color Ramp"""
@@ -188,16 +265,28 @@ class G2C_OT_GetColorRampPalette(Operator):
     bl_label = "Get Color Ramp Palette"
 
     def execute(self, context):
-        color_ramp = get_active_color_ramp(context)
-        if not color_ramp:
+        # Retrieve the active color ramp node (must be a ShaderNodeValToRGB node)
+        color_ramp_node = get_active_color_ramp(context)
+        if not color_ramp_node or color_ramp_node.type != 'VALTORGB':
             self.report({'WARNING'}, "No active Color Ramp found in the selected horcrux.")
             return {'CANCELLED'}
 
+        # Extract colors from the color ramp within the ShaderNodeValToRGB node
+        color_ramp = color_ramp_node.color_ramp
         colors = [element.color for element in color_ramp.elements]
-        set_brush_palette(colors)
-        context.scene.color_ramp_palette.color_ramp_name = color_ramp.id_data.name
-        self.report({'INFO'}, "Palette set from Color Ramp")
+        
+        # Use the node's name for the palette
+        color_ramp_node_name = color_ramp_node.name
+        palette_name = set_brush_palette(colors, color_ramp_node_name)
+        
+        # Store the palette name in the scene's property
+        context.scene.color_ramp_palette.color_ramp_name = palette_name
+        
+        # Report success
+        self.report({'INFO'}, f"Palette '{palette_name}' set from Color Ramp")
         return {'FINISHED'}
+
+
 
 
 class G2C_OT_CopyRGBCurveToBrushFalloff(Operator):
@@ -576,18 +665,19 @@ class G2C_OT_copy_color_ramp_to_brush(Operator):
     bl_label = "Copy Color Ramp to Brush"
 
     def execute(self, context):
-        color_ramp = get_active_color_ramp(context)
-        if not color_ramp:
+        color_ramp_node = get_active_color_ramp(context)
+        if not color_ramp_node:
             self.report({'WARNING'}, "No active Color Ramp found in the selected horcrux object.")
             return {'CANCELLED'}
         
         brush = context.tool_settings.image_paint.brush
 
-        if brush and color_ramp:
+        if brush and color_ramp_node:
             brush.color_type = 'GRADIENT'
             brush_gradient = brush.gradient
 
-            new_elements = [(elem.position, elem.color) for elem in color_ramp.elements]
+            # Correctly access the elements through the color_ramp property
+            new_elements = [(elem.position, elem.color) for elem in color_ramp_node.color_ramp.elements]
 
             while len(brush_gradient.elements) < len(new_elements):
                 brush_gradient.elements.new(position=0)
@@ -601,12 +691,43 @@ class G2C_OT_copy_color_ramp_to_brush(Operator):
 
             self.report({'INFO'}, "Color ramp copied to brush gradient.")
         else:
-            if not color_ramp:
+            if not color_ramp_node:
                 self.report({'WARNING'}, "Active color ramp not found.")
             if not brush:
                 self.report({'WARNING'}, "Active brush not found.")
 
         return {'FINISHED'}
+
+
+class G2C_OT_CopyBrushGradientToColorRamp(Operator):
+    """Copy Brush Gradient to Color Ramp Node"""
+    bl_idname = "paint.copy_brush_gradient_to_color_ramp"
+    bl_label = "Copy Brush Gradient to Color Ramp"
+    
+    def execute(self, context):
+        color_ramp_node = copy_brush_gradient_to_color_ramp(context)
+        if not color_ramp_node:
+            self.report({'WARNING'}, "Failed to copy brush gradient to color ramp.")
+            return {'CANCELLED'}
+        
+        self.report({'INFO'}, "Brush gradient copied to color ramp node successfully.")
+        return {'FINISHED'}
+
+
+class G2C_OT_CopyBrushFalloffToRGBCurve(Operator):
+    """Copy Brush Falloff Curve to RGB Curve Node"""
+    bl_idname = "paint.copy_brush_falloff_to_rgb_curve"
+    bl_label = "Copy Brush Falloff to RGB Curve"
+    
+    def execute(self, context):
+        rgb_curve_node = copy_brush_falloff_to_rgb_curve(context)
+        if not rgb_curve_node:
+            self.report({'WARNING'}, "Failed to copy brush falloff to RGB curve.")
+            return {'CANCELLED'}
+        
+        self.report({'INFO'}, "Brush falloff curve copied to RGB curve node successfully.")
+        return {'FINISHED'}
+
 
 
 class G2C_PT_horcrux_manager(Panel):
@@ -704,6 +825,8 @@ class G2C_PT_horcrux_manager(Panel):
                                 row.prop(ramp, "active", text="", icon='VIEW_UNLOCKED' if ramp.active else 'VIEW_LOCKED')
                                 row.label(text=ramp.name)
                                 row.operator(G2C_OT_copy_color_ramp_to_brush.bl_idname, text="", icon='BRUSH_DATA')
+                                row.operator(G2C_OT_CopyBrushGradientToColorRamp.bl_idname, text="", icon='IMPORT')
+                                
                                 box.template_color_ramp(color_ramp_node, "color_ramp", expand=True)
                     else:
                         layout.label(text="No Color Ramps Added", icon='INFO')
@@ -721,7 +844,9 @@ class G2C_PT_horcrux_manager(Panel):
                                 row.prop(curve, "active", text="", icon='VIEW_UNLOCKED' if curve.active else 'VIEW_LOCKED')
                                 row.label(text=curve.name)
                                 row.operator(G2C_OT_CopyRGBCurveToBrushFalloff.bl_idname, text="", icon='BRUSH_DATA')
+                                row.operator(G2C_OT_CopyBrushFalloffToRGBCurve.bl_idname, text="", icon='IMPORT')
                                 row.operator(G2C_OT_CopyRGBCurveToCavityMask.bl_idname, text="", icon='SCREEN_BACK')
+                                
                                 box.template_curve_mapping(data=rgb_curve_node, property="mapping", type='COLOR')
                     else:
                         layout.label(text="No RGB Curves Added", icon='INFO')
@@ -750,9 +875,10 @@ class G2C_AddColorToPalette(Operator):
             self.report({'WARNING'}, "No active material with nodes found")
             return {'CANCELLED'}
 
-        color_ramp_name = context.scene.color_ramp_palette.color_ramp_name
+        # Use the actual ColorRamp node's name, not the palette name
+        color_ramp_node_name = context.scene.color_ramp_palette.color_ramp_name.replace("_Palette", "")
         node_tree = material.node_tree
-        color_ramp_node = node_tree.nodes.get(color_ramp_name)
+        color_ramp_node = node_tree.nodes.get(color_ramp_node_name)
 
         if color_ramp_node and color_ramp_node.type == 'VALTORGB':
             new_element = color_ramp_node.color_ramp.elements.new(0.5)
@@ -766,6 +892,71 @@ class G2C_AddColorToPalette(Operator):
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
+
+class G2C_OT_GenerateGradientFromPalette(Operator):
+    """Generate Gradient in Active Brush from Active Palette"""
+    bl_idname = "brush.generate_gradient_from_palette"
+    bl_label = "Generate Gradient from Palette"
+    bl_description = "Create a gradient in the active brush based on the active color palette"
+
+    def execute(self, context):
+        brush = context.tool_settings.image_paint.brush
+        
+        if not brush:
+            self.report({'WARNING'}, "No active brush found.")
+            return {'CANCELLED'}
+
+        # Access the active palette from the scene or tool settings
+        palette = context.tool_settings.image_paint.palette
+        if not palette:
+            palette = context.scene.tool_settings.palette
+        if not palette:
+            self.report({'WARNING'}, "No active palette found.")
+            return {'CANCELLED'}
+
+        # Retrieve the gradient from the brush
+        brush_gradient = brush.gradient
+        
+        # Get the number of colors in the palette
+        num_colors = len(palette.colors)
+        if num_colors == 0:
+            self.report({'WARNING'}, "No colors in the active palette.")
+            return {'CANCELLED'}
+
+        # Ensure there are enough gradient points, add new if necessary
+        while len(brush_gradient.elements) < num_colors:
+            brush_gradient.elements.new(0)
+
+        # Update the existing gradient points with the palette colors
+        for i, color in enumerate(palette.colors):
+            position = i / (num_colors - 1) if num_colors > 1 else 0.5
+            
+            # Ensure the color has 4 components (RGBA)
+            rgba_color = list(color.color)[:3] + [1.0]  # Add alpha = 1.0 if it's not present
+            brush_gradient.elements[i].position = position
+            brush_gradient.elements[i].color = rgba_color
+
+        # If there are extra gradient points, remove them
+        while len(brush_gradient.elements) > num_colors:
+            brush_gradient.elements.remove(brush_gradient.elements[-1])
+
+        self.report({'INFO'}, "Gradient created from the active palette.")
+        return {'FINISHED'}
+
+
+def draw_gradient_button(self, context):
+    layout = self.layout
+    settings = context.tool_settings.image_paint
+
+    # Debugging print to check if the function is being called
+    print("Attempting to draw the gradient button...")
+
+    if settings and settings.palette:
+        layout.operator("brush.generate_gradient_from_palette", text="Gradient from Palette")
+
+
+
+
 
 ### Register and Unregister Functions
 
@@ -786,6 +977,11 @@ def register():
     bpy.utils.register_class(G2C_PT_horcrux_manager)
     bpy.utils.register_class(G2C_AddColorToPalette)
     bpy.utils.register_class(G2C_OT_copy_color_ramp_to_brush)
+    bpy.utils.register_class(G2C_OT_CopyBrushGradientToColorRamp)
+    bpy.utils.register_class(G2C_OT_CopyBrushFalloffToRGBCurve)
+    bpy.utils.register_class(G2C_OT_GenerateGradientFromPalette)
+    # Assuming we identified the correct panel, let's append the button there
+    bpy.types.VIEW3D_PT_tools_brush_settings.append(draw_gradient_button)
     
     bpy.types.Scene.color_ramp_palette = PointerProperty(type=ColorRampPalette)
     bpy.types.Scene.color_ramp_manager = PointerProperty(type=ColorRampManagerProperties)
@@ -808,6 +1004,13 @@ def unregister():
     bpy.utils.unregister_class(G2C_PT_horcrux_manager)
     bpy.utils.unregister_class(G2C_AddColorToPalette)
     bpy.utils.unregister_class(G2C_OT_copy_color_ramp_to_brush)
+    bpy.utils.unregister_class(G2C_OT_CopyBrushGradientToColorRamp)
+    bpy.utils.unregister_class(G2C_OT_CopyBrushFalloffToRGBCurve)
+    bpy.utils.unregister_class(G2C_OT_GenerateGradientFromPalette)
+    bpy.types.IMAGE_PT_paint_stroke.remove(draw_gradient_button)
+    # Remove the draw function from the existing ColorPalettePanel
+    bpy.types.VIEW3D_PT_tools_brush_settings.remove(draw_gradient_button)
+    
     del bpy.types.Scene.color_ramp_palette
     del bpy.types.Scene.color_ramp_manager
 
